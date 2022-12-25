@@ -10,22 +10,40 @@
         node: document.getElementById("elm-code-is-loaded-here")
       });
 
-      var db = new PouchDB('http://admin:admin@localhost:5984/proddat');
-/*
+      var db = new PouchDB('proddatalocalstorage2');
+//      db.destroy()
+//      var db = new PouchDB('proddatalocalstorage');
+
+      var x = PouchDB.replicate("http://admin:admin@localhost:5984/proddat", "proddatalocalstorage2", {live: true, retry: true})
+      console.log(x)
+      
       var ddoc = {
-                    _id: '_design/index',
-                    views: {
-                        index: {
-                            map: function mapFun(doc) {
-                                if (doc.type=="type") {
-                                    emit(doc.LOT);
-                                }
-                            }.toString()
-                        }
-                    }
-                }
+        "_id": "_design/lots6",
+        "views": {
+            "lots_and_pass": {
+            "map": "function (doc) {\n  if(doc.LOT && doc.type && doc.type==\"DUT\") emit([doc.LOT, doc.PASS], 1);\n}",
+            "reduce": "_count"
+            },
+            "lots": {
+            "map": "function (doc) {\n  if(doc.LOT && doc.type && doc.type==\"DUT\") emit(doc.LOT, 1);\n}",
+            "reduce": "_count"
+            },
+            "passes": {
+            "map": "function (doc) {\n  if(doc.LOT && doc.type && doc.type==\"DUT\" && doc.PASS) emit(doc.LOT, 1);\n}",
+            "reduce": "_count"
+            },
+            "fails": {
+            "map": "function (doc) {\n  if(doc.LOT && doc.type && doc.type==\"DUT\" && !doc.PASS) emit(doc.LOT, 1);\n}",
+            "reduce": "_count"
+            }
+
+        },
+        "language": "javascript"
+      }
 
       db.put(ddoc).catch(function (err) {
+        console.log("not stored")
+        console.log(err)
         if (err.name !== 'conflict') {
             throw err;
         }
@@ -34,21 +52,40 @@
       
         }).then(function (result) {
         // handle result
+        console.log("stored")
         }).catch(function (err) {
           console.log(err);
-        });*/
-
-      db.allDocs({
-        include_docs: true,
-        attachments: false}).then(function (result) {
-            rr = result["rows"]
-            for (const x of rr){
-                console.log(x["doc"])
-                app.ports.receiveData.send( JSON.stringify(x["doc"]));
-            }    
-        }).catch(function (err) {
-           console.log(err);
         });
+
+        function exchange(){
+            db.query("lots6/passes", {reduce: "_count", group: true, group_level: 2}).then(function(result){
+                const row = result.rows
+                for (const x of row){
+                    var y = {LOT: x["key"], type: "passes", count: x["value"]}
+                    console.log(y)
+                    app.ports.receiveData.send(JSON.stringify(y));
+                }
+                console.log("passes")
+            })
+            db.query("lots6/fails", {reduce: "_count", group: true, group_level: 2}).then(function(result){
+                const row = result.rows
+                for (const x of row){
+                    var y = {LOT: x["key"], type: "fails", count: x["value"]}
+                    console.log(y)
+                    app.ports.receiveData.send(JSON.stringify(y));
+                }
+                console.log("fails")
+            })
+
+        }
+
+        db.changes({since: 'now', live: true, include_docs: false}).on('change', function(change) {
+            // handle change
+            exchange()
+        })
+        exchange()      
+        //better to repeatedly change doc until change handle triggered
+        
     </script>
 </body>
 </html>

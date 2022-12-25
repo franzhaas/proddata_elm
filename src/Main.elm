@@ -1,83 +1,60 @@
-module Main exposing (..)
+port module Main exposing (main)
+
 import Browser
 import Html exposing (..)
-import Html.Attributes exposing (..)
-import Html.Events exposing (onInput)
-
-
-
--- MAIN
-
-
-main =
-  Browser.sandbox { init = init, update = update, view = view }
-
-
-
--- MODEL
+import Html.Events exposing (onClick)
+import Dict exposing (Dict)
 
 
 type alias Model =
-  { name : String
-  , password : String
-  , passwordAgain : String
-  }
+    String
 
 
-init : Model
-init =
-  Model "" "" ""
-
-
-
--- UPDATE
-
-type Commwithpouchdb
-    = SendDataToPDB
-    | ReceivedDataFromPDB Model
+view : Model -> Html Msg
+view model =
+    div []
+        [ button [ onClick SendDataToJS ]
+            [ text "Send Data to JavaScript" ]
+        , br [] []
+        , br [] []
+        , text ("Data received from JavaScript: " ++ model )
+        ]
 
 
 type Msg
-  = Name String
-  | Password String
-  | PasswordAgain String
-  | Commwithpouchdb
+    = SendDataToJS
+    | ReceivedDataFromJS Model
 
 
-update : Msg -> Model -> Model
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-  case msg of
-    Name name ->
-      { model | name = name }
+    case msg of
+        SendDataToJS ->
+            ( model, sendData "Hello JavaScript!" )
 
-    Password password ->
-      { model | password = password }
-
-    PasswordAgain password ->
-      { model | passwordAgain = password }
-
-    Commwithpouchdb -> 
-       model 
-
--- VIEW
-view : Model -> Html Msg
-view model =
-  div []
-    [ viewInput "text" "Name" model.name Name
-    , viewInput "password" "Password" model.password Password
-    , viewInput "password" "Re-enter Password" model.passwordAgain PasswordAgain
-    , viewValidation model
-    ]
+        ReceivedDataFromJS data ->
+            ( model ++ data, Cmd.none )
 
 
-viewInput : String -> String -> String -> (String -> msg) -> Html msg
-viewInput t p v toMsg =
-  input [ type_ t, placeholder p, value v, onInput toMsg ] []
+subscriptions : Model -> Sub Msg
+subscriptions _ =
+    receiveData  ReceivedDataFromJS
 
 
-viewValidation : Model -> Html msg
-viewValidation model =
-  if model.password == model.passwordAgain then
-    div [ style "color" "green" ] [ text "OK" ]
-  else
-    div [ style "color" "red" ] [ text "Passwords do not match!" ]
+port sendData : String -> Cmd msg
+port receiveData : (Model -> msg) -> Sub msg
+
+
+init : () -> ( Model, Cmd Msg )
+init _ =
+    ( "", Cmd.none )
+
+
+main : Program () Model Msg
+main =
+    Browser.element
+        { init = init
+        , view = view
+        , update = update
+        , subscriptions = subscriptions
+        }
