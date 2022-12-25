@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<body>
+    <div id="elm-code-is-loaded-here"></div>
+		
+    <script src="elm.js"></script>
+    <script src="pouchdb-8.0.0.js"></script>
+    <script>
+      var app = Elm.Main.init({
+        node: document.getElementById("elm-code-is-loaded-here")
+      });
+
+      var db = new PouchDB('http://admin:admin@localhost:5984/proddat');
+/*
+      var ddoc = {
+                    _id: '_design/index',
+                    views: {
+                        index: {
+                            map: function mapFun(doc) {
+                                if (doc.type=="type") {
+                                    emit(doc.LOT);
+                                }
+                            }.toString()
+                        }
+                    }
+                }
+
+      db.put(ddoc).catch(function (err) {
+        if (err.name !== 'conflict') {
+            throw err;
+        }
+        // ignore if doc already exists
+        }).then(function () {
+      
+        }).then(function (result) {
+        // handle result
+        }).catch(function (err) {
+          console.log(err);
+        });*/
+
+      db.allDocs({
+        include_docs: true,
+        attachments: false}).then(function (result) {
+            rr = result["rows"]
+            for (const x of rr){
+                console.log(x["doc"])
+                app.ports.receiveData.send( JSON.stringify(x["doc"]));
+            }    
+        }).catch(function (err) {
+           console.log(err);
+        });
+    </script>
+</body>
+</html>
