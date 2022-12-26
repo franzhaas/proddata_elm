@@ -24,6 +24,7 @@ type alias Model =
     { dataFromJS : String
     , jsonError : Maybe Error
     , result : ProdDataResults
+    , preparedData : PreperedDataType
     }
 
 type alias ProdDatType = 
@@ -32,6 +33,32 @@ type alias ProdDatType =
     , pf_case : String
     , count : Int
     }
+
+type alias PreperedDataType =     Dict.Dict String (Int, Int, Float) 
+
+semiPreparedData : PreperedDataType -> ProdDataResults -> String -> String ->  Int -> PreperedDataType
+semiPreparedData prevPreparedData storage lot pf_case count =
+    let
+        fails  = if pf_case == "fails" then Just count else Dict.get  (lot, "fails") storage
+        passes = if pf_case == "passes" then Just count else Dict.get  (lot, "passes") storage
+    in
+       
+         case fails of
+            Just jFails ->
+                case passes of
+                    Just jPasses -> 
+                        Dict.insert  lot  (jPasses, jFails, (100.0*(toFloat jPasses)/(toFloat (jPasses+jFails)))) prevPreparedData
+                    Nothing ->
+                        Dict.insert  lot  (0, jFails, 0.0) prevPreparedData
+
+            Nothing ->
+                case passes of
+                    Just jPasses ->
+                        Dict.insert  lot  (jPasses, 0, 100.0) prevPreparedData
+                    Nothing ->
+                        prevPreparedData
+ 
+            
 
 prodDatDecoder : Decoder ProdDatType
 prodDatDecoder =
@@ -44,8 +71,7 @@ prodDatDecoder =
 view : Model -> Html Msg
 view model =
     div []
-        [ button [ onClick SendDataToJS ]
-          [ text "Send Data to JavaScript" ]
+        [ 
           , viewDataFromJSOrError model]
 
 
@@ -57,7 +83,7 @@ viewDataFromJSOrError model =
 
         Nothing ->
             let
-               oData = Debug.toString model.result
+               oData = Debug.toString model.preparedData
             in
                viewDataFromJS oData
 
@@ -112,7 +138,13 @@ update msg model =
                                   let
                                     lpf_key = (prodDat.lot, prodDat.pf_case)
                                   in
-                                    ( { model | result = Dict.insert lpf_key prodDat.count model.result }, Cmd.none )
+                                    let 
+                                       nextResult = Dict.insert lpf_key prodDat.count model.result
+                                    in
+                                        let
+                                                  nextPD = semiPreparedData model.preparedData nextResult prodDat.lot prodDat.pf_case prodDat.count
+                                        in
+                                              ( { model | result = nextResult, preparedData = nextPD }, Cmd.none )
                             Err error ->
                                   ( { model | dataFromJS = "Error parsing database content: " ++ data}, Cmd.none )
                 Err error ->
@@ -133,6 +165,7 @@ initialModel =
     { dataFromJS = ""
     , jsonError = Nothing
     , result = Dict.empty 
+    , preparedData = Dict.empty
     }
 
 main : Program () Model Msg
