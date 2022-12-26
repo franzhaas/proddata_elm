@@ -12,7 +12,7 @@ import String
 type alias ProdDataResults = Dict.Dict (String, String) Int
 
 type alias Model =
-    { dataFromJS : String
+    { jsError : Maybe Error
     , jsonError : Maybe Error
     , result : ProdDataResults
     , preparedData : PreperedDataType
@@ -60,18 +60,16 @@ toTableRow : ( String, ( Int, Int, Float ) ) -> Html Msg
 toTableRow myListItem =
     let
        (lot, (passes1, fails1, yield1)) = myListItem
+       passes = String.fromInt  passes1
+       fails = String.fromInt  fails1
+       yield = Round.round 2  yield1
     in
-       let
-          passes = String.fromInt  passes1
-          fails = String.fromInt  fails1
-          yield = Round.round 2  yield1
-        in  
-          tr []
-             [ td [] [ text lot ]
-             , td [] [ text passes ]
-             , td [] [ text fails ]
-             , td [] [ text yield ]
-             ]
+       tr []
+        [ td [] [ text lot ]
+        , td [] [ text passes ]
+        , td [] [ text fails ]
+        , td [] [ text yield ]
+        ]
 
 view : Model -> Html Msg
 view model =
@@ -104,11 +102,11 @@ update msg model =
                                 nextResult = Dict.insert pf_tuple prodDat.count model.result
                                 nextPD = semiPreparedData model.preparedData nextResult prodDat.lot prodDat.pf_case prodDat.count
                             in
-                                ( { model | result = nextResult, preparedData = nextPD }, Cmd.none )
-                        Err _ ->
-                                  ( { model | dataFromJS = "Error parsing database content: " ++ data}, Cmd.none )
+                                ({ model | result = nextResult, preparedData = nextPD }, Cmd.none)
+                        Err error ->
+                                  ({ model | jsError  = Just error}, Cmd.none)
                 Err error ->
-                    ( { model | jsonError = Just error }, Cmd.none )
+                    ({ model | jsonError = Just error }, Cmd.none )
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
@@ -122,7 +120,7 @@ init _ =
 
 initialModel : Model
 initialModel =
-    { dataFromJS = ""
+    { jsError = Nothing
     , jsonError = Nothing
     , result = Dict.empty 
     , preparedData = Dict.empty
