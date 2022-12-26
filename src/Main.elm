@@ -6,6 +6,9 @@ import Html.Events exposing (onClick)
 import Json.Decode exposing (Error(..), Value, decodeValue, string, int, decodeString, field, string, Decoder, map3)
 import Dict
 import Debug
+import List
+import Round
+import String
 
 
 
@@ -57,7 +60,6 @@ semiPreparedData prevPreparedData storage lot pf_case count =
                         Dict.insert  lot  (jPasses, 0, 100.0) prevPreparedData
                     Nothing ->
                         prevPreparedData
- 
             
 
 prodDatDecoder : Decoder ProdDatType
@@ -67,14 +69,55 @@ prodDatDecoder =
     (field "type" string)
     (field "count" int)
 
+-- VIEW
+type alias MyListItem =
+    { label : String
+    , price : Float
+    }
+
+total : Float
+total =
+    5.0
+
+myList : List MyListItem
+myList =
+    [ { label = "labelA", price = 2 }
+    , { label = "labelB", price = 3 }
+    ]
+
+toTableRow : ( String, ( Int, Int, Float ) ) -> Html Msg
+toTableRow myListItem =
+    let
+       (lot, (passes1, fails1, yield1)) = myListItem
+    in
+       let
+          passes = String.fromInt  passes1
+          fails = String.fromInt  fails1
+          yield = Round.round 2  yield1
+        in  
+          tr []
+             [ td [] [ text lot ]
+             , td [] [ text passes ]
+             , td [] [ text fails ]
+             , td [] [ text yield ]
+             ]
 
 view : Model -> Html Msg
 view model =
-    div []
-        [ 
-          , viewDataFromJSOrError model]
-
-
+    let
+        preparedList = Dict.toList    model.preparedData
+    in
+        table
+            []
+            ([ thead []
+                [ th [] [ text "LOT" ]
+                , th [] [ text "PASSES" ]
+                , th [] [ text "FAILS" ]
+                , th [] [ text "YIELD" ]
+                ]
+            ]
+                ++ List.map toTableRow preparedList
+            )
 viewDataFromJSOrError : Model -> Html Msg
 viewDataFromJSOrError model =
     case model.jsonError of
