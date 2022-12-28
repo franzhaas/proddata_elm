@@ -39,9 +39,9 @@
                 const row = result.rows
                 for (const x of row){
                     if (x["key"][1] == 1){
-                        app.ports.receiveData.send(JSON.stringify({LOT: x["key"][0], type: "passes", count: x["value"]}));
+                        app.ports.receiveData.send({LOT: x["key"][0], type: "passes", count: x["value"]});
                     }else if (x["key"][1] == 0){
-                        app.ports.receiveData.send(JSON.stringify({LOT: x["key"][0], type: "fails", count: x["value"]}));
+                        app.ports.receiveData.send({LOT: x["key"][0], type: "fails", count: x["value"]});
                     }
                 }
             })
